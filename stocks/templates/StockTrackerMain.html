@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>股票查詢系統</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .chart {
+            width: 100%;
+            height: 600px;
+            margin: 20px auto;
+        }
+
+        input[type="text"],
+        select {
+            padding: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 8px 12px;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+
+        #error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>股票查詢系統</h1>
+    <div>
+        <label for="symbolInput">輸入股票代號或名稱（例如：2330.TW 或 台積電）:</label>
+        <input type="text" id="symbolInput" placeholder="輸入股票代號" />
+        <select id="intervalSelect">
+            <option value="1d">日線</option>
+            <option value="1wk">週線</option>
+            <option value="1mo">月線</option>
+        </select>
+        <button onclick="fetchStockData()">查詢</button>
+    </div>
+    <div id="error"></div>
+    <div id="chart" class="chart"></div>
+
+    <script>
+        function fetchStockData() {
+            const symbol = document.getElementById("symbolInput").value.trim();
+            const interval = document.getElementById("intervalSelect").value;
+            if (!symbol) {
+                document.getElementById("error").innerText = "請輸入股票代號或名稱";
+                return;
+            }
+            document.getElementById("error").innerText = "";
+
+            fetch(`/api/stock_data/?symbol=${encodeURIComponent(symbol)}&interval=${interval}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.error) {
+                        document.getElementById("error").innerText = data.error;
+                        document.getElementById("chart").innerHTML = "";
+                    } else {
+                        plotChart(data, symbol, interval);
+                    }
+                })
+                .catch((err) => {
+                    document.getElementById("error").innerText = "查詢失敗，請稍後再試";
+                    console.error(err);
+                });
+        }
+
+        function plotChart(data, symbol, interval) {
+            const trace = {
+                x: data.dates,
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                close: data.close,
+                type: "candlestick",
+                name: symbol,
+                increasing: { line: { color: "green" } },
+                decreasing: { line: { color: "red" } },
+            };
+
+            const layout = {
+                title: `${symbol} 的 K 線圖（${interval}）`,
+                xaxis: {
+                    title: "日期",
+                    rangeslider: { visible: false },
+                },
+                yaxis: { title: "價格" },
+            };
+
+            const config = {
+                responsive: true,
+                scrollZoom: true, // ✅ 滑鼠滾輪縮放
+            };
+
+            Plotly.newPlot("chart", [trace], layout, config);
+        }
+    </script>
+</body>
+
+</html>
